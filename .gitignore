@@ -1,0 +1,16 @@
+build/bin/
+build/windows/
+frontend/dist/
+frontend/node_modules/
+frontend/wailsjs/
+*.exe
+*.dll
+*.mmdb
+*.db
+*.log
+.env
+.idea/
+.vscode/
+*.swp
+*.swo
+D:\NetRasad\internal\platform\windows\traffic\debug_test.go

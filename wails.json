@@ -1,0 +1,19 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "NetRasad",
+  "outputfilename": "NetRasad",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "NetRasad Project",
+    "email": ""
+  },
+  "info": {
+    "productName": "NetRasad",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright © 2026 NetRasad Project",
+    "comments": "Cross-platform network monitoring and bandwidth accounting suite"
+  }
+}

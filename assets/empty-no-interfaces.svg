@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1B1F26"/>
+      <stop offset="100%" stop-color="#12151B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="300" rx="12" fill="url(#bgGrad2)"/>
+  
+  <!-- Subtle Grid Pattern -->
+  <path d="M0 60 H400 M0 120 H400 M0 180 H400 M0 240 H400" stroke="#262D38" stroke-width="1" stroke-dasharray="4,4"/>
+  <path d="M80 0 V300 M160 0 V300 M240 0 V300 M320 0 V300" stroke="#262D38" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Disconnected RJ45 Cable Graphic -->
+  <g transform="translate(130, 90)">
+    <!-- Left Plug -->
+    <rect x="10" y="40" width="45" height="30" rx="4" fill="#3A4451" stroke="#5A6471" stroke-width="2"/>
+    <rect x="0" y="48" width="10" height="14" fill="#262E3B"/>
+    <rect x="55" y="46" width="12" height="18" fill="#FF5555" rx="2"/>
+    <!-- Cable Wire Left -->
+    <path d="M-30 55 Q -10 55 0 55" stroke="#5A6471" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+    <!-- Warning / Disconnect Spark in Center -->
+    <g transform="translate(75, 40)">
+      <circle cx="20" cy="15" r="18" fill="#FF5555" fill-opacity="0.15"/>
+      <path d="M15 5 L25 15 L18 17 L24 27 L13 16 L19 14 Z" fill="#FF5555"/>
+    </g>
+
+    <!-- Right Socket/Plug -->
+    <rect x="125" y="40" width="45" height="30" rx="4" fill="#3A4451" stroke="#5A6471" stroke-width="2"/>
+    <rect x="170" y="48" width="10" height="14" fill="#262E3B"/>
+    <rect x="113" y="46" width="12" height="18" fill="#5A6471" rx="2"/>
+    <!-- Cable Wire Right -->
+    <path d="M180 55 Q 200 55 210 55" stroke="#5A6471" stroke-width="6" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- Subtitle Text -->
+  <text x="200" y="235" font-family="Segoe UI, sans-serif" font-weight="600" font-size="16" fill="#8A93A5" text-anchor="middle">No Network Interfaces Found</text>
+  <text x="200" y="258" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A6471" text-anchor="middle">Please check your network adapters or connection permissions.</text>
+</svg>
