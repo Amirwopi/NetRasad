@@ -36,23 +36,25 @@ Here is a glimpse of NetRasad in action:
 <details>
 <summary><b>Click to Expand Screenshots Gallery</b></summary>
 
-| Dashboard | Application Connections |
+| Dashboard | Applications Monitor |
 | :---: | :---: |
-| <img src="screenshot/NetRasad_23YVk06Xon.png" width="400"> | <img src="screenshot/NetRasad_5W6IeUGX3q.png" width="400"> |
+| <img src="screenshot/NetRasad_5W6IeUGX3q.png" width="400"> | <img src="screenshot/NetRasad_duDBrIJAX2.png" width="400"> |
 
-| Settings & Customization | Network Diagnostics |
+| Connections | Network Diagnostics |
 | :---: | :---: |
-| <img src="screenshot/NetRasad_6EFyM6y3dg.png" width="400"> | <img src="screenshot/NetRasad_duDBrIJAX2.png" width="400"> |
+| <img src="screenshot/NetRasad_6EFyM6y3dg.png" width="400"> | <img src="screenshot/NetRasad_wtvf5aGNho.png" width="400"> |
 
-| Floating Taskbar Widget | Tooltip Details |
+| Settings & Customization | Tooltip & Widget Preview |
 | :---: | :---: |
-| <img src="screenshot/NetRasad_wtvf5aGNho.png" width="400"> | <img src="screenshot/hJN0N2RvgK.png" width="400"> |
+| <img src="screenshot/NetRasad_23YVk06Xon.png" width="400"> | <img src="screenshot/NetRasad_p4pnCUbDx0.png" width="400"> |
 
 *Additional previews:*
 <br>
-<img src="screenshot/NetRasad_SFSX8bQccw.png" width="260">
-<img src="screenshot/NetRasad_p4pnCUbDx0.png" width="260">
-<img src="screenshot/NetRasad_pdedxazoRu.png" width="260">
+**Traffic Reports:**<br>
+<img src="screenshot/NetRasad_SFSX8bQccw.png" width="400">
+<br>
+**Data Quota:**<br>
+<img src="screenshot/NetRasad_pdedxazoRu.png" width="400">
 
 </details>
 
