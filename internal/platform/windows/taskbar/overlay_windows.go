@@ -151,6 +151,7 @@ type TaskbarOverlayConfig struct {
 	Position      string `json:"position"`
 	Width         int32  `json:"width"`
 	OffsetX       int32  `json:"offsetX"`
+	Monitor       int32  `json:"monitor"`
 }
 
 type TaskbarOverlay struct {
@@ -279,14 +280,14 @@ func (o *TaskbarOverlay) Start() error {
 
 		procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
-		shellTrayName, _ := syscall.UTF16PtrFromString("Shell_TrayWnd")
-		hwndTaskbar, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(shellTrayName)), 0)
-
 		o.mu.Lock()
 		w := o.config.Width
 		pos := o.config.Position
 		offsetX := o.config.OffsetX
+		monitorIndex := o.config.Monitor
 		o.mu.Unlock()
+
+		hwndTaskbar := getTaskbarHwnd(monitorIndex)
 
 		x, y, wVal, hVal := calculateTaskbarPosition(hwndTaskbar, w, 38, pos, offsetX)
 
@@ -499,16 +500,37 @@ func (o *TaskbarOverlay) reposition() {
 	if o.hwnd == 0 {
 		return
 	}
-	shellTrayName, _ := syscall.UTF16PtrFromString("Shell_TrayWnd")
-	hwndTaskbar, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(shellTrayName)), 0)
 
 	o.mu.Lock()
 	w := o.config.Width
 	pos := o.config.Position
+	monitorIndex := o.config.Monitor
 	o.mu.Unlock()
 
+	hwndTaskbar := getTaskbarHwnd(monitorIndex)
 	x, y, wVal, hVal := calculateTaskbarPosition(hwndTaskbar, w, 38, pos, o.config.OffsetX)
 	procSetWindowPos.Call(o.hwnd, 0, uintptr(x), uintptr(y), uintptr(wVal), uintptr(hVal), SWP_NOACTIVATE|SWP_SHOWWINDOW)
+}
+
+func getTaskbarHwnd(monitorIndex int32) uintptr {
+	if monitorIndex <= 0 {
+		name, _ := syscall.UTF16PtrFromString("Shell_TrayWnd")
+		hwnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(name)), 0)
+		return hwnd
+	}
+
+	name, _ := syscall.UTF16PtrFromString("Shell_SecondaryTrayWnd")
+	var hwnd uintptr = 0
+	for i := int32(1); i <= monitorIndex; i++ {
+		hwnd, _, _ = procFindWindowExW.Call(0, hwnd, uintptr(unsafe.Pointer(name)), 0)
+		if hwnd == 0 {
+			break
+		}
+	}
+	if hwnd == 0 {
+		return getTaskbarHwnd(0)
+	}
+	return hwnd
 }
 
 func calculateTaskbarPosition(hwndTaskbar uintptr, overlayW, overlayH int32, position string, offsetX int32) (x, y, w, h int32) {
@@ -622,8 +644,13 @@ func windowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		return 1
 	case WM_MOUSEMOVE:
 		o.mu.Lock()
-		if !o.hovering {
+		wasHovering := o.hovering
+		if !wasHovering {
 			o.hovering = true
+		}
+		o.mu.Unlock()
+		
+		if !wasHovering {
 			var tme trackMouseEventStruct
 			tme.Size = uint32(unsafe.Sizeof(tme))
 			tme.Flags = TME_LEAVE
@@ -631,7 +658,6 @@ func windowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procTrackMouseEvent.Call(uintptr(unsafe.Pointer(&tme)))
 			showTooltip(hwnd)
 		}
-		o.mu.Unlock()
 		return 0
 	case WM_MOUSELEAVE:
 		o.mu.Lock()
@@ -685,8 +711,15 @@ func showTooltip(hwndTaskbarBand uintptr) {
 	var bandRect rect
 	procGetWindowRect.Call(hwndTaskbarBand, uintptr(unsafe.Pointer(&bandRect)))
 
+	o.mu.Lock()
+	numApps := len(o.topProcesses)
+	o.mu.Unlock()
+	if numApps == 0 {
+		numApps = 1
+	}
+
 	tipW := int32(230)
-	tipH := int32(85)
+	tipH := int32(30 + numApps*40)
 	tipX := bandRect.Left + (bandRect.Right-bandRect.Left-tipW)/2
 	tipY := bandRect.Top - tipH - 4
 
@@ -733,15 +766,18 @@ func drawTaskbarBandContent(hwnd, hdc uintptr) {
 	upBGR := hexToBGR(cfg.UpColorHex, 0x4AC38B)
 	downBGR := hexToBGR(cfg.DownColorHex, 0x00A5FF)
 
+	// Text on the left
 	upStr := fmt.Sprintf("▲ %s", formatRateMbit(upBps))
+	downStr := fmt.Sprintf("▼ %s", formatRateMbit(downBps))
 	upStrPtr, _ := syscall.UTF16PtrFromString(upStr)
-	rUp := rect{Left: 4, Top: 2, Right: w - 65, Bottom: h/2 + 1}
+	downStrPtr, _ := syscall.UTF16PtrFromString(downStr)
+
+	// Draw "▲" and "▼" in exact colors, rest in same colors
+	rUp := rect{Left: 6, Top: 2, Right: w - 65, Bottom: h/2 + 1}
 	procSetTextColor.Call(memDC, uintptr(upBGR))
 	procDrawTextW.Call(memDC, uintptr(unsafe.Pointer(upStrPtr)), ^uintptr(0), uintptr(unsafe.Pointer(&rUp)), DT_SINGLELINE|DT_VCENTER|DT_LEFT)
 
-	downStr := fmt.Sprintf("▼ %s", formatRateMbit(downBps))
-	downStrPtr, _ := syscall.UTF16PtrFromString(downStr)
-	rDown := rect{Left: 4, Top: h/2 - 1, Right: w - 65, Bottom: h - 2}
+	rDown := rect{Left: 6, Top: h/2 - 1, Right: w - 65, Bottom: h - 2}
 	procSetTextColor.Call(memDC, uintptr(downBGR))
 	procDrawTextW.Call(memDC, uintptr(unsafe.Pointer(downStrPtr)), ^uintptr(0), uintptr(unsafe.Pointer(&rDown)), DT_SINGLELINE|DT_VCENTER|DT_LEFT)
 
@@ -805,45 +841,91 @@ func drawTooltipContent(hwnd, hdc uintptr) {
 	fontSmall := o.fontSmall
 	o.mu.Unlock()
 
+	numApps := len(topProcs)
+	if numApps == 0 {
+		numApps = 1
+	}
+	
+	// Base height = 30px (header) + apps * 40px
+	h := int32(30 + numApps*40)
 	w := int32(230)
-	h := int32(85)
 
 	memDC, _, _ := procCreateCompatibleDC.Call(hdc)
 	memBmp, _, _ := procCreateCompatibleBitmap.Call(hdc, uintptr(w), uintptr(h))
 	oldBmp, _, _ := procSelectObject.Call(memDC, memBmp)
 
-	brush, _, _ := procCreateSolidBrush.Call(0x201814)
+	// Background: dark gray (#2C2C2C -> BGR 0x2C2C2C)
+	brush, _, _ := procCreateSolidBrush.Call(0x2C2C2C)
 	r := rect{Left: 0, Top: 0, Right: w, Bottom: h}
 	procFillRect.Call(memDC, uintptr(unsafe.Pointer(&r)), brush)
 	procDeleteObject.Call(brush)
+
+	// Light border
+	borderPen, _, _ := procCreatePen.Call(PS_SOLID, 1, 0x888888)
+	oldPen, _, _ := procSelectObject.Call(memDC, borderPen)
+	procMoveToEx.Call(memDC, 0, 0, 0)
+	procLineTo.Call(memDC, uintptr(w-1), 0)
+	procLineTo.Call(memDC, uintptr(w-1), uintptr(h-1))
+	procLineTo.Call(memDC, 0, uintptr(h-1))
+	procLineTo.Call(memDC, 0, 0)
+	procSelectObject.Call(memDC, oldPen)
+	procDeleteObject.Call(borderPen)
 
 	procSetBkMode.Call(memDC, TRANSPARENT)
 
 	if fontBold != 0 {
 		procSelectObject.Call(memDC, fontBold)
 	}
-	titleStr, _ := syscall.UTF16PtrFromString("Top Application Usage:")
-	rTitle := rect{Left: 8, Top: 4, Right: w - 8, Bottom: 22}
-	procSetTextColor.Call(memDC, 0xE0E6ED)
+	titleStr, _ := syscall.UTF16PtrFromString("Applications")
+	rTitle := rect{Left: 10, Top: 8, Right: w - 10, Bottom: 26}
+	procSetTextColor.Call(memDC, 0xAAAAAA) // Gray title
 	procDrawTextW.Call(memDC, uintptr(unsafe.Pointer(titleStr)), ^uintptr(0), uintptr(unsafe.Pointer(&rTitle)), DT_SINGLELINE|DT_VCENTER|DT_LEFT)
 
 	if fontSmall != 0 {
 		procSelectObject.Call(memDC, fontSmall)
 	}
 
+	upBGR := hexToBGR(o.config.UpColorHex, 0x4AC38B)
+	downBGR := hexToBGR(o.config.DownColorHex, 0x00A5FF)
+
 	if len(topProcs) == 0 {
-		noProcStr, _ := syscall.UTF16PtrFromString("1. chrome.exe  ↓ 2.4 MB/s  ↑ 120 KB/s")
-		rItem := rect{Left: 10, Top: 26, Right: w - 10, Bottom: 42}
-		procSetTextColor.Call(memDC, 0x00A5FF)
+		noProcStr, _ := syscall.UTF16PtrFromString("No active applications")
+		rItem := rect{Left: 10, Top: 30, Right: w - 10, Bottom: 46}
+		procSetTextColor.Call(memDC, 0x777777)
 		procDrawTextW.Call(memDC, uintptr(unsafe.Pointer(noProcStr)), ^uintptr(0), uintptr(unsafe.Pointer(&rItem)), DT_SINGLELINE|DT_VCENTER|DT_LEFT)
 	} else {
 		for i, p := range topProcs {
-			yTop := int32(24 + i*18)
-			lineStr := fmt.Sprintf("%d. %s  ↓ %s  ↑ %s", i+1, truncateStr(p.Name, 14), formatRateMbit(p.DownloadBps), formatRateMbit(p.UploadBps))
-			linePtr, _ := syscall.UTF16PtrFromString(lineStr)
-			rItem := rect{Left: 10, Top: yTop, Right: w - 10, Bottom: yTop + 18}
-			procSetTextColor.Call(memDC, 0x38BDF8)
-			procDrawTextW.Call(memDC, uintptr(unsafe.Pointer(linePtr)), ^uintptr(0), uintptr(unsafe.Pointer(&rItem)), DT_SINGLELINE|DT_VCENTER|DT_LEFT)
+			yBase := int32(30 + i*40)
+			
+			// App Name
+			nameStr, _ := syscall.UTF16PtrFromString(truncateStr(p.Name, 25))
+			rName := rect{Left: 10, Top: yBase, Right: w - 10, Bottom: yBase + 16}
+			procSetTextColor.Call(memDC, 0xDDDDDD) // Off-white
+			procDrawTextW.Call(memDC, uintptr(unsafe.Pointer(nameStr)), ^uintptr(0), uintptr(unsafe.Pointer(&rName)), DT_SINGLELINE|DT_VCENTER|DT_LEFT)
+			
+			// Speeds (Up)
+			upStr := fmt.Sprintf("▲ %s", formatRateMbit(p.UploadBps))
+			upPtr, _ := syscall.UTF16PtrFromString(upStr)
+			rUp := rect{Left: 10, Top: yBase + 15, Right: w - 10, Bottom: yBase + 27}
+			procSetTextColor.Call(memDC, uintptr(upBGR))
+			procDrawTextW.Call(memDC, uintptr(unsafe.Pointer(upPtr)), ^uintptr(0), uintptr(unsafe.Pointer(&rUp)), DT_SINGLELINE|DT_VCENTER|DT_LEFT)
+			
+			// Speeds (Down)
+			downStr := fmt.Sprintf("▼ %s", formatRateMbit(p.DownloadBps))
+			downPtr, _ := syscall.UTF16PtrFromString(downStr)
+			rDown := rect{Left: 10, Top: yBase + 27, Right: w - 10, Bottom: yBase + 39}
+			procSetTextColor.Call(memDC, uintptr(downBGR))
+			procDrawTextW.Call(memDC, uintptr(unsafe.Pointer(downPtr)), ^uintptr(0), uintptr(unsafe.Pointer(&rDown)), DT_SINGLELINE|DT_VCENTER|DT_LEFT)
+			
+			// Separator line (unless last)
+			if i < len(topProcs) - 1 {
+				sepPen, _, _ := procCreatePen.Call(PS_SOLID, 1, 0xEEEEEE)
+				oldP, _, _ := procSelectObject.Call(memDC, sepPen)
+				procMoveToEx.Call(memDC, 10, uintptr(yBase+39), 0)
+				procLineTo.Call(memDC, uintptr(w-10), uintptr(yBase+39))
+				procSelectObject.Call(memDC, oldP)
+				procDeleteObject.Call(sepPen)
+			}
 		}
 	}
 

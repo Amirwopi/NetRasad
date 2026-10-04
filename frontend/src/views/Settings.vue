@@ -114,6 +114,15 @@
             <option :value="210">{{ $t('taskbar.sizeLarge') }}</option>
           </select>
         </div>
+        <div class="settings-row">
+          <label>Display Monitor</label>
+          <select v-model.number="s.taskbarMonitor" class="select" style="width: auto" @change="syncTaskbar">
+            <option :value="0">Primary Monitor</option>
+            <option :value="1">Monitor 2</option>
+            <option :value="2">Monitor 3</option>
+            <option :value="3">Monitor 4</option>
+          </select>
+        </div>
         <div class="settings-row" v-if="s.taskbarPosition === 'left'">
           <label>Offset X (Pixels)</label>
           <input type="number" v-model.number="s.taskbarOffsetX" class="input" style="width: 100px" @change="syncTaskbar" />
@@ -410,6 +419,7 @@ function syncTaskbar() {
     position: s.taskbarPosition || 'right',
     width: s.taskbarWidth || 165,
     offsetX: s.taskbarOffsetX || 0,
+    monitor: s.taskbarMonitor || 0,
   })
 }
 

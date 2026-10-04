@@ -97,6 +97,8 @@ export interface TaskbarOverlayConfig {
   transparentBg: boolean
   position: 'right' | 'left'
   width: number
+  offsetX?: number
+  monitor?: number
 }
 
 export interface AppSettings {
@@ -118,6 +120,7 @@ export interface AppSettings {
   taskbarPosition: 'right' | 'left'
   taskbarWidth: number
   taskbarOffsetX: number
+  taskbarMonitor: number
   pingOverlayEnabled: boolean
   pingOverlayAddress: string
   pingOverlayLabel: string
@@ -147,6 +150,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   taskbarPosition: 'right',
   taskbarWidth: 165,
   taskbarOffsetX: 0,
+  taskbarMonitor: 0,
   pingOverlayEnabled: false,
   pingOverlayAddress: '8.8.8.8',
   pingOverlayLabel: 'Google',

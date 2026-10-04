@@ -15,6 +15,8 @@ type TaskbarOverlayConfig struct {
 	TransparentBg bool   `json:"transparentBg"`
 	Position      string `json:"position"`
 	Width         int32  `json:"width"`
+	OffsetX       int32  `json:"offsetX"`
+	Monitor       int32  `json:"monitor"`
 }
 
 type TaskbarOverlay struct{}
