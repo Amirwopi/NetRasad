@@ -348,11 +348,11 @@ function rttBarHeight(rtt: number): number {
   font-size: 13px;
   transition: all 0.15s;
 }
-.tool-tab:hover { color: var(--text, #ccc); border-color: var(--accent, #00D4FF); }
+.tool-tab:hover { color: var(--text); border-color: var(--accent-down); }
 .tool-tab--active {
-  background: var(--accent, #00D4FF);
-  color: #000;
-  border-color: var(--accent, #00D4FF);
+  background: var(--accent-down);
+  color: #fff;
+  border-color: var(--accent-down);
 }
 
 .tool-form {
@@ -363,18 +363,18 @@ function rttBarHeight(rtt: number): number {
 }
 .form-row { display: flex; flex-direction: column; gap: 4px; }
 .form-row--port, .form-row--count { min-width: 90px; }
-.form-label { font-size: 12px; color: var(--text-muted, #888); }
+.form-label { font-size: 12px; color: var(--text-muted); }
 .form-input {
   padding: 8px 12px;
-  background: var(--bg-input, #1a1e24);
-  border: 1px solid var(--border, #333);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--text, #e0e0e0);
+  color: var(--text);
   font-size: 14px;
   min-width: 220px;
 }
 .form-input--port, .form-input--count { min-width: 80px; }
-.form-input:focus { outline: none; border-color: var(--accent, #00D4FF); }
+.form-input:focus { outline: none; border-color: var(--accent-down); }
 
 .btn {
   padding: 8px 20px;
@@ -385,8 +385,8 @@ function rttBarHeight(rtt: number): number {
   font-weight: 600;
 }
 .btn--primary {
-  background: var(--accent, #00D4FF);
-  color: #000;
+  background: var(--accent-down);
+  color: #fff;
 }
 .btn--primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn--primary:hover:not(:disabled) { filter: brightness(1.1); }
@@ -398,7 +398,7 @@ function rttBarHeight(rtt: number): number {
   margin-bottom: 16px;
 }
 .result-stat { display: flex; flex-direction: column; gap: 2px; }
-.result-stat__label { font-size: 11px; color: var(--text-muted, #888); text-transform: uppercase; }
+.result-stat__label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
 .result-stat__value { font-size: 18px; font-weight: 600; }
 
 .rtt-bars {
@@ -410,7 +410,7 @@ function rttBarHeight(rtt: number): number {
 }
 .rtt-bar {
   flex: 1;
-  background: var(--accent, #00D4FF);
+  background: var(--accent-down);
   border-radius: 3px 3px 0 0;
   min-width: 8px;
   transition: height 0.3s;
@@ -418,28 +418,28 @@ function rttBarHeight(rtt: number): number {
 
 .gateway-info, .info-row { display: flex; gap: 12px; }
 .info-row { margin-bottom: 6px; }
-.info-label { font-size: 12px; color: var(--text-muted, #888); min-width: 100px; }
+.info-label { font-size: 12px; color: var(--text-muted); min-width: 100px; }
 .info-value { font-size: 14px; }
 
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .data-table th, .data-table td {
   padding: 8px 12px;
   text-align: left;
-  border-bottom: 1px solid var(--border, #333);
+  border-bottom: 1px solid var(--border);
 }
-.data-table th { color: var(--text-muted, #888); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+.data-table th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
 
 .dns-section { margin-bottom: 12px; }
-.dns-section h4 { font-size: 13px; margin-bottom: 4px; color: var(--accent, #00D4FF); }
+.dns-section h4 { font-size: 13px; margin-bottom: 4px; color: var(--accent-down); }
 .dns-list { list-style: none; padding: 0; margin: 0; }
 .dns-list li { padding: 4px 0; font-size: 13px; font-family: monospace; }
 
 .raw-output { margin-top: 12px; }
-.raw-output summary { cursor: pointer; font-size: 12px; color: var(--text-muted, #888); }
+.raw-output summary { cursor: pointer; font-size: 12px; color: var(--text-muted); }
 .raw-output pre {
   margin-top: 8px;
   padding: 12px;
-  background: var(--bg-input, #1a1e24);
+  background: var(--bg-input);
   border-radius: 6px;
   font-size: 12px;
   overflow-x: auto;
@@ -447,8 +447,8 @@ function rttBarHeight(rtt: number): number {
   word-break: break-all;
 }
 
-.error-msg { color: #ff6b6b; font-size: 13px; }
-.text-success { color: #00FF88; }
-.text-danger { color: #ff6b6b; }
-.muted { color: var(--text-muted, #888); font-size: 13px; }
+.error-msg { color: var(--accent-error); font-size: 13px; }
+.text-success { color: var(--accent-up); }
+.text-danger { color: var(--accent-error); }
+.muted { color: var(--text-muted); font-size: 13px; }
 </style>

@@ -235,7 +235,7 @@
         <span class="card__title">{{ $t('settings.about') }}</span>
       </div>
       <div class="card__body">
-        <div class="settings-row"><label class="muted">Version</label><span class="mono">0.1.0</span></div>
+        <div class="settings-row"><label class="muted">Version</label><span class="mono">{{ appVersion }}</span></div>
         <div class="settings-row"><label class="muted">Platform</label><span class="mono">{{ caps?.platform ?? '—' }}</span></div>
         <div class="settings-row"><label class="muted">Traffic Monitor</label><span :style="{color: caps?.trafficMonitor ? 'var(--accent-up)' : 'var(--accent-error)'}">{{ caps?.trafficMonitor ? '✓' : '✗' }}</span></div>
       </div>
@@ -248,6 +248,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useWails } from '@/composables/useWails'
 import type { Capabilities, NetworkInterface, GraphColorScheme } from '@/types'
+import { GetAppVersion } from '../../wailsjs/go/app/App'
 
 const settings = useSettingsStore()
 const s = settings.settings
@@ -260,6 +261,7 @@ const schemeSelect = ref<GraphColorScheme>(s.graphColorScheme)
 const dbPath = ref('—')
 const dbCheckResult = ref('')
 const caps = ref<Capabilities | null>(null)
+const appVersion = ref('0.1.0')
 
 const activeInterfaces = ref<NetworkInterface[]>([])
 const selectedIds = ref<string[]>([])
@@ -423,7 +425,14 @@ function syncTaskbar() {
   })
 }
 
-function syncPingOverlay() {
+async function syncPingOverlay() {
+  const currentCfg = await wails.getPingOverlayConfig()
+  
+  if (currentCfg && currentCfg.x) {
+    s.pingOverlayX = currentCfg.x
+    s.pingOverlayY = currentCfg.y
+  }
+
   wails.setPingOverlayConfig({
     enabled: s.pingOverlayEnabled,
     address: s.pingOverlayAddress,
@@ -431,8 +440,8 @@ function syncPingOverlay() {
     bgColorHex: s.pingOverlayBgColorHex,
     textColorHex: s.pingOverlayTextColorHex,
     shape: s.pingOverlayShape,
-    x: 0,
-    y: 0
+    x: s.pingOverlayX,
+    y: s.pingOverlayY
   })
 }
 
@@ -445,6 +454,7 @@ onMounted(async () => {
     caps.value = await wails.getCapabilities()
     dbPath.value = caps.value?.dbPath ?? '—'
     s.autoStart = await wails.isAutoStartEnabled()
+    try { appVersion.value = await GetAppVersion() } catch { }
   } catch {  }
   await loadInterfaces()
   syncTaskbar()

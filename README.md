@@ -24,8 +24,9 @@
   * **Ping**, **Traceroute**, **DNS Lookup**, **TCP Connect**
   * Gateway and Interface detection (with SSID integration).
 * **🌍 Full i18n Support**: Native RTL (Persian) and LTR (English) localization.
-* **💾 Persistent Storage**: All historical data is safely stored locally via SQLite for future analysis and reporting.
-* **🎨 Modern UI/UX**: Fully customizable dark-themed UI, flexible color schemes, and seamless native-like experience.
+* **💾 Persistent Storage & Quotas**: All historical data is safely stored locally via SQLite, providing accurate Data Quota tracking across reboots.
+* **📡 Modem/Router Integration**: Direct Telnet integration to view ADSL stats, WiFi configurations (SSID and ghosts), active DNS, Firewall/NAT rules, and Reboot capability.
+* **🎨 Modern UI/UX**: Fully customizable dark-themed UI, flexible color schemes, draggable Ping widget, and seamless native-like experience.
 
 ---
 
@@ -76,7 +77,8 @@ Here is a glimpse of NetRasad in action:
 
 - [x] Multi-monitor taskbar overlay support.
 - [x] Localization (English/Persian).
-- [ ] **TODO: Modem Settings Integration** - Add configuration pages and features specifically for managing and viewing Modem/Router statistics directly from NetRasad.
+- [x] **Modem Settings Integration** - Add configuration pages and features specifically for managing and viewing Modem/Router statistics directly from NetRasad.
+- [x] Floating Ping Widget with persistent dragging support.
 
 ---
 
@@ -103,6 +105,11 @@ wails dev
 To compile the final standalone executable:
 ```bash
 wails build -clean -platform windows/amd64
+```
+
+Alternatively, use the custom PowerShell build script to inject version tags (e.g. for GitHub releases):
+```powershell
+.\scripts\build.ps1 -Version v1.0.2
 ```
 The output binary will be located at: `build/bin/NetRasad.exe`
 

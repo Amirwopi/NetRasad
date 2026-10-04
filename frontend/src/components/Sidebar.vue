@@ -44,6 +44,7 @@ const navItems = [
   { to: '/quota', label: 'nav.quota', icon: icons.quota },
   { to: '/connections', label: 'nav.connections', icon: icons.connections },
   { to: '/diagnostics', label: 'nav.diagnostics', icon: icons.diagnostics },
+  { to: '/modem', label: 'nav.modem', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>' },
   { to: '/settings', label: 'nav.settings', icon: icons.settings },
 ]
 </script>

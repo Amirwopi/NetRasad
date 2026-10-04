@@ -43,6 +43,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/Diagnostics.vue'),
     meta: { titleKey: 'nav.diagnostics' },
   },
+  {
+    path: '/modem',
+    name: 'modem',
+    component: () => import('@/views/Modem.vue'),
+    meta: { titleKey: 'nav.modem' },
+  },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

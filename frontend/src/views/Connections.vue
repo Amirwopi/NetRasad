@@ -254,15 +254,15 @@ onUnmounted(() => {
 .search-box { flex: 1; min-width: 200px; }
 .form-input {
   padding: 6px 12px;
-  background: var(--bg-input, #1a1e24);
-  border: 1px solid var(--border, #333);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--text, #e0e0e0);
+  color: var(--text);
   font-size: 13px;
   width: 100%;
 }
 .form-input--select { width: auto; min-width: 120px; cursor: pointer; }
-.form-input:focus { outline: none; border-color: var(--accent, #00D4FF); }
+.form-input:focus { outline: none; border-color: var(--accent-down); }
 
 .btn {
   padding: 6px 16px;

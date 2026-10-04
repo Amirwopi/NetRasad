@@ -17,8 +17,11 @@ export const useTrafficStore = defineStore('traffic', () => {
 
   const downloadRate = computed(() => snapshot.value?.downloadRate ?? 0)
   const uploadRate = computed(() => snapshot.value?.uploadRate ?? 0)
-  const totalDownload = computed(() => snapshot.value?.totalDownload ?? 0)
-  const totalUpload = computed(() => snapshot.value?.totalUpload ?? 0)
+  const historicalDownload = ref<number>(0)
+  const historicalUpload = ref<number>(0)
+
+  const totalDownload = computed(() => (snapshot.value?.totalDownload ?? 0) + historicalDownload.value)
+  const totalUpload = computed(() => (snapshot.value?.totalUpload ?? 0) + historicalUpload.value)
 
   const interfaceList = computed<InterfaceTraffic[]>(() => {
     const map = snapshot.value?.interfaces
@@ -80,6 +83,8 @@ export const useTrafficStore = defineStore('traffic', () => {
     uploadRate,
     totalDownload,
     totalUpload,
+    historicalDownload,
+    historicalUpload,
     interfaceList,
     topInterfaces,
     setSnapshot,

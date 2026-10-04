@@ -15,17 +15,22 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+var Version = "dev"
+
 func main() {
 	if singleinstance.CheckAndLock() {
 		os.Exit(0)
 	}
 
 	a := app.New()
+	a.SetVersion(Version)
 
 	err := wails.Run(&options.App{
 		Title:             "NetRasad",
-		Width:             1024,
-		Height:            700,
+		Width:             1100,
+		Height:            768,
+		MinWidth:          1024,
+		MinHeight:         700,
 		HideWindowOnClose: true,
 		AssetServer: &assetserver.Options{
 			Assets: frontend.Assets,

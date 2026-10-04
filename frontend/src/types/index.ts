@@ -127,6 +127,8 @@ export interface AppSettings {
   pingOverlayBgColorHex: string
   pingOverlayTextColorHex: string
   pingOverlayShape: 'circle' | 'rectangle'
+  pingOverlayX: number
+  pingOverlayY: number
   autoStart: boolean
   quota: QuotaConfig
 }
@@ -157,6 +159,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   pingOverlayBgColorHex: '#26201C',
   pingOverlayTextColorHex: '#AAAAAA',
   pingOverlayShape: 'rectangle',
+  pingOverlayX: 100,
+  pingOverlayY: 100,
   autoStart: false,
   quota: {
     enabled: true,

@@ -76,6 +76,27 @@ func (s *TrafficService) GetTrafficHistory(ctx context.Context, start, end time.
 	})
 }
 
+func (s *TrafficService) GetHistoricalUsage(start time.Time) (uint64, uint64) {
+	if s.store == nil {
+		return 0, 0
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	samples, err := s.store.QueryTraffic(ctx, ports.TrafficQuery{
+		StartTime: start,
+		EndTime:   time.Now(),
+	})
+	if err != nil {
+		return 0, 0
+	}
+	var totalDl, totalUl uint64
+	for _, sm := range samples {
+		totalDl += sm.DownloadBytes
+		totalUl += sm.UploadBytes
+	}
+	return totalDl, totalUl
+}
+
 func (s *TrafficService) IsRunning() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()

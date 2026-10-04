@@ -21,6 +21,7 @@ import (
 	"github.com/netrasad/netrasad/internal/platform/windows/taskbar"
 	"github.com/netrasad/netrasad/internal/storage/sqlite"
 	"github.com/netrasad/netrasad/internal/traffic"
+	"github.com/netrasad/netrasad/internal/modem"
 )
 
 type App struct {
@@ -30,6 +31,7 @@ type App struct {
 	dbPath         string
 	diagSvc        *diagnostics.Service
 	connSvc        *connections.Service
+	modemSvc       *modem.Service
 	taskbarOverlay *taskbar.TaskbarOverlay
 	pingOverlay    *pingoverlay.PingOverlay
 
@@ -47,6 +49,7 @@ func New() *App {
 		log:            logger,
 		diagSvc:        diagnostics.NewService(),
 		connSvc:        connections.NewService(),
+		modemSvc:       modem.NewService(),
 		taskbarOverlay: taskbar.GetOverlay(),
 		pingOverlay:    pingoverlay.GetOverlay(),
 	}
@@ -110,6 +113,16 @@ func (a *App) Startup(ctx context.Context) {
 	go a.eventLoop(innerCtx)
 
 	a.log.Info("NetRasad started", "db", a.dbPath)
+}
+
+var appVersion = "dev"
+
+func (a *App) SetVersion(v string) {
+	appVersion = v
+}
+
+func (a *App) GetAppVersion() string {
+	return appVersion
 }
 
 func (a *App) Shutdown(ctx context.Context) {
@@ -260,6 +273,18 @@ func (a *App) GetInterfaces() ([]domain.NetworkInterface, error) {
 		return nil, nil
 	}
 	return a.trafficSvc.GetInterfaces(context.Background())
+}
+
+func (a *App) GetHistoricalUsage(startDateIso string) map[string]uint64 {
+	if a.trafficSvc == nil {
+		return map[string]uint64{"download": 0, "upload": 0}
+	}
+	start, err := time.Parse(time.RFC3339, startDateIso)
+	if err != nil {
+		start = time.Now().AddDate(0, 0, -30)
+	}
+	dl, ul := a.trafficSvc.GetHistoricalUsage(start)
+	return map[string]uint64{"download": dl, "upload": ul}
 }
 
 func (a *App) GetRateHistory() []domain.RateSample {
@@ -447,4 +472,91 @@ func (a *App) saveSelection(ids []string) error {
 		return fmt.Errorf("marshal selection: %w", err)
 	}
 	return os.WriteFile(a.selectionPath, data, 0644)
+}
+
+func (a *App) RunModemCommand(host, username, password, command string) (string, error) {
+	if a.modemSvc == nil {
+		return "", fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.RunModemCommand(host, username, password, command)
+}
+
+func (a *App) TestModemConnection(host, username, password string) error {
+	if a.modemSvc == nil {
+		return fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.TestConnection(host, username, password)
+}
+
+func (a *App) GetConnectedDevices(host, username, password, brand string) ([]modem.ConnectedDevice, error) {
+	if a.modemSvc == nil {
+		return nil, fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.GetConnectedDevices(host, username, password, brand)
+}
+
+func (a *App) GetADSLStatus(host, username, password, brand string) (*modem.ADSLStatus, error) {
+	if a.modemSvc == nil {
+		return nil, fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.GetADSLStatus(host, username, password, brand)
+}
+
+func (a *App) GetFirewallRules(host, username, password, brand string) ([]modem.FirewallRule, error) {
+	if a.modemSvc == nil {
+		return nil, fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.GetFirewallRules(host, username, password, brand)
+}
+
+func (a *App) GetNATRules(host, username, password, brand string) ([]modem.NATRule, error) {
+	if a.modemSvc == nil {
+		return nil, fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.GetNATRules(host, username, password, brand)
+}
+
+func (a *App) GetModemRoutes(host, username, password, brand string) ([]modem.RouteEntry, error) {
+	if a.modemSvc == nil {
+		return nil, fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.GetRoutes(host, username, password, brand)
+}
+
+func (a *App) GetModemInterfaces(host, username, password, brand string) ([]modem.InterfaceEntry, error) {
+	if a.modemSvc == nil {
+		return nil, fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.GetInterfaces(host, username, password, brand)
+}
+
+
+
+
+func (a *App) ChangeWifiConfig(host, username, password, brand, ssid, wifiPass string) error {
+	if a.modemSvc == nil {
+		return fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.ChangeWifiConfig(host, username, password, brand, ssid, wifiPass)
+}
+
+func (a *App) GetWifiStatus(host, user, pass, brand string) ([]modem.WifiStatus, error) {
+	if a.modemSvc == nil {
+		return nil, fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.GetWifiStatus(host, user, pass, brand)
+}
+
+func (a *App) GetDNS(host, user, pass, brand string) ([]string, error) {
+	if a.modemSvc == nil {
+		return nil, fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.GetDNS(host, user, pass, brand)
+}
+
+func (a *App) RebootModem(host, username, password, brand string) error {
+	if a.modemSvc == nil {
+		return fmt.Errorf("modem service not initialized")
+	}
+	return a.modemSvc.Reboot(host, username, password, brand)
 }
