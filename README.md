@@ -38,24 +38,24 @@ Here is a glimpse of NetRasad in action:
 
 | Dashboard | Applications Monitor |
 | :---: | :---: |
-| <img src="screenshot/NetRasad_5W6IeUGX3q.png" width="400"> | <img src="screenshot/NetRasad_duDBrIJAX2.png" width="400"> |
+| <img src="screenshot/Dashboard.png" width="400"> | <img src="screenshot/Applications.png" width="400"> |
 
 | Connections | Network Diagnostics |
 | :---: | :---: |
-| <img src="screenshot/NetRasad_6EFyM6y3dg.png" width="400"> | <img src="screenshot/NetRasad_wtvf5aGNho.png" width="400"> |
+| <img src="screenshot/connections.png" width="400"> | <img src="screenshot/diagnostics.png" width="400"> |
 
 | Settings & Customization | Tooltip & Widget Preview |
 | :---: | :---: |
-| <img src="screenshot/NetRasad_23YVk06Xon.png" width="400"> | <img src="screenshot/NetRasad_p4pnCUbDx0.png" width="400"> |
+| <img src="screenshot/Settings.png" width="400"> | <img src="screenshot/Tooltip_Widget.png" width="400"> |
 
 *Additional previews:*
 <br>
 **Traffic Reports:**<br>
-<img src="screenshot/NetRasad_SFSX8bQccw.png" width="400">
+<img src="screenshot/Traffic_Reports.png" width="400">
 <br>
 **Data Quota & Others:**<br>
-<img src="screenshot/NetRasad_pdedxazoRu.png" width="400">
-<img src="screenshot/hJN0N2RvgK.png" width="200">
+<img src="screenshot/Data_Quota.png" width="400">
+<img src="screenshot/Widget_Ping.png" width="200">
 
 </details>
 
