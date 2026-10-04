@@ -53,8 +53,9 @@ Here is a glimpse of NetRasad in action:
 **Traffic Reports:**<br>
 <img src="screenshot/NetRasad_SFSX8bQccw.png" width="400">
 <br>
-**Data Quota:**<br>
+**Data Quota & Others:**<br>
 <img src="screenshot/NetRasad_pdedxazoRu.png" width="400">
+<img src="screenshot/hJN0N2RvgK.png" width="200">
 
 </details>
 
