@@ -92,41 +92,46 @@
       </div>
       <div class="card__body">
         <div class="settings-row">
-          <label>{{ $t('taskbar.displayInTaskbar') }}</label>
+          <label>
+            {{ windowsOverlays ? $t('taskbar.displayInTaskbar') : $t('taskbar.displayInPanel') }}
+            <span v-if="!windowsOverlays" class="muted settings-hint">{{ $t('taskbar.panelHint') }}</span>
+          </label>
           <input type="checkbox" v-model="s.displaySpeedInTaskbar" class="checkbox-input" @change="syncTaskbar" />
         </div>
-        <div class="settings-row">
-          <label>{{ $t('taskbar.transparent') }}</label>
-          <input type="checkbox" v-model="s.taskbarTransparent" class="checkbox-input" @change="syncTaskbar" />
-        </div>
-        <div class="settings-row">
-          <label>{{ $t('taskbar.position') }}</label>
-          <select v-model="s.taskbarPosition" class="select" style="width: auto" @change="syncTaskbar">
-            <option value="right">{{ $t('taskbar.positionRight') }}</option>
-            <option value="left">{{ $t('taskbar.positionLeft') }}</option>
-          </select>
-        </div>
-        <div class="settings-row">
-          <label>{{ $t('taskbar.size') }}</label>
-          <select v-model.number="s.taskbarWidth" class="select" style="width: auto" @change="syncTaskbar">
-            <option :value="140">{{ $t('taskbar.sizeSmall') }}</option>
-            <option :value="165">{{ $t('taskbar.sizeStandard') }}</option>
-            <option :value="210">{{ $t('taskbar.sizeLarge') }}</option>
-          </select>
-        </div>
-        <div class="settings-row">
-          <label>Display Monitor</label>
-          <select v-model.number="s.taskbarMonitor" class="select" style="width: auto" @change="syncTaskbar">
-            <option :value="0">Primary Monitor</option>
-            <option :value="1">Monitor 2</option>
-            <option :value="2">Monitor 3</option>
-            <option :value="3">Monitor 4</option>
-          </select>
-        </div>
-        <div class="settings-row" v-if="s.taskbarPosition === 'left'">
-          <label>Offset X (Pixels)</label>
-          <input type="number" v-model.number="s.taskbarOffsetX" class="input" style="width: 100px" @change="syncTaskbar" />
-        </div>
+        <template v-if="windowsOverlays">
+          <div class="settings-row">
+            <label>{{ $t('taskbar.transparent') }}</label>
+            <input type="checkbox" v-model="s.taskbarTransparent" class="checkbox-input" @change="syncTaskbar" />
+          </div>
+          <div class="settings-row">
+            <label>{{ $t('taskbar.position') }}</label>
+            <select v-model="s.taskbarPosition" class="select" style="width: auto" @change="syncTaskbar">
+              <option value="right">{{ $t('taskbar.positionRight') }}</option>
+              <option value="left">{{ $t('taskbar.positionLeft') }}</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>{{ $t('taskbar.size') }}</label>
+            <select v-model.number="s.taskbarWidth" class="select" style="width: auto" @change="syncTaskbar">
+              <option :value="140">{{ $t('taskbar.sizeSmall') }}</option>
+              <option :value="165">{{ $t('taskbar.sizeStandard') }}</option>
+              <option :value="210">{{ $t('taskbar.sizeLarge') }}</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>Display Monitor</label>
+            <select v-model.number="s.taskbarMonitor" class="select" style="width: auto" @change="syncTaskbar">
+              <option :value="0">Primary Monitor</option>
+              <option :value="1">Monitor 2</option>
+              <option :value="2">Monitor 3</option>
+              <option :value="3">Monitor 4</option>
+            </select>
+          </div>
+          <div class="settings-row" v-if="s.taskbarPosition === 'left'">
+            <label>Offset X (Pixels)</label>
+            <input type="number" v-model.number="s.taskbarOffsetX" class="input" style="width: 100px" @change="syncTaskbar" />
+          </div>
+        </template>
         <div class="settings-row">
           <label>{{ $t('settings.autoStart') }}</label>
           <input type="checkbox" v-model="s.autoStart" class="checkbox-input" @change="syncAutoStart" />
@@ -135,7 +140,7 @@
     </div>
 
     <!-- Ping Overlay Options -->
-    <div class="card">
+    <div class="card" v-if="pingOverlaySupported">
       <div class="card__header">
         <span class="card__title">Ping Overlay</span>
       </div>
@@ -244,7 +249,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useWails } from '@/composables/useWails'
 import type { Capabilities, NetworkInterface, GraphColorScheme } from '@/types'
@@ -262,6 +267,11 @@ const dbPath = ref('—')
 const dbCheckResult = ref('')
 const caps = ref<Capabilities | null>(null)
 const appVersion = ref('0.1.0')
+
+// The overlays are native Windows windows; other platforms report them as
+// unsupported and show the speed next to the tray icon instead.
+const windowsOverlays = computed(() => caps.value?.taskbarOverlay !== false)
+const pingOverlaySupported = computed(() => caps.value?.pingOverlay !== false)
 
 const activeInterfaces = ref<NetworkInterface[]>([])
 const selectedIds = ref<string[]>([])
@@ -469,6 +479,7 @@ onMounted(async () => {
 .color-picker-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 13px; }
 .color-input { width: 36px; height: 26px; border: none; border-radius: 4px; cursor: pointer; background: transparent; }
 .checkbox-input { width: 18px; height: 18px; cursor: pointer; }
+.settings-hint { display: block; font-size: 11px; margin-top: 2px; }
 .slider-group { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; font-size: 13px; }
 .range-slider { width: 100%; cursor: pointer; }
 .grid-2-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }

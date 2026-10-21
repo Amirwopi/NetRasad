@@ -107,6 +107,8 @@ export default {
     down: 'Down',
     up: 'Up',
     displayInTaskbar: 'Display Speed Floating Widget',
+    displayInPanel: 'Show speed next to the tray icon',
+    panelHint: 'Shown on desktops that support indicator labels (e.g. GNOME with AppIndicator, Ubuntu). Elsewhere, hover over the tray icon to see live speeds.',
     transparent: 'Transparent Background',
     position: 'Taskbar Position',
     positionRight: 'Right (Near System Tray)',
@@ -151,7 +153,7 @@ export default {
     lineWidth: 'Line Thickness',
     sampleGraph: 'Sample Graph Preview',
     extraStuff: 'Widget & Overlay Options',
-    autoStart: 'Run automatically on Windows startup (Auto Boot)',
+    autoStart: 'Run automatically when you sign in (Auto Boot)',
   },
   connections: {
     title: 'Network Connections',

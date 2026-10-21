@@ -18,7 +18,7 @@
 ## 🚀 Key Features
 
 * **⚡ Real-Time Traffic Monitoring**: Track your network download and upload speeds with a beautiful, dynamic live graph.
-* **🖥️ Taskbar & System Tray Overlay**: Keep an eye on your network throughput without maximizing the app. Includes support for multi-monitor taskbar displays.
+* **🖥️ Taskbar & System Tray Overlay**: Keep an eye on your network throughput without maximizing the app. Includes support for multi-monitor taskbar displays on Windows; on Linux the live speed sits next to the tray icon.
 * **🔍 Per-Application Monitoring**: View exact data usage and active network connections grouped by individual processes.
 * **🛠️ Advanced Network Diagnostics**:
   * **Ping**, **Traceroute**, **DNS Lookup**, **TCP Connect**
@@ -69,7 +69,7 @@ Here is a glimpse of NetRasad in action:
 | **Backend Core** | Go 1.26, Wails v2 |
 | **Frontend UI** | Vue 3, TypeScript, Vite, Pinia, Vue-Router, Vue-i18n |
 | **Data Storage** | SQLite |
-| **Platform APIs** | Windows IP Helper (`GetIfTable2`), `wlanapi.dll` |
+| **Platform APIs** | Windows: IP Helper (`GetIfTable2`), `wlanapi.dll` · Linux: sysfs/procfs, rtnetlink & nl80211, D-Bus (StatusNotifierItem tray) |
 
 ---
 
@@ -79,6 +79,7 @@ Here is a glimpse of NetRasad in action:
 - [x] Localization (English/Persian).
 - [x] **Modem Settings Integration** - Add configuration pages and features specifically for managing and viewing Modem/Router statistics directly from NetRasad.
 - [x] Floating Ping Widget with persistent dragging support.
+- [x] Linux support (tray icon with live speed, autostart, `.deb`/`.rpm` packages).
 
 ---
 
@@ -88,6 +89,13 @@ Here is a glimpse of NetRasad in action:
 * **Go** 1.21+ (1.26 recommended)
 * **Node.js** 18+
 * **Wails CLI** v2
+* **Linux only:** GTK 3 and WebKitGTK 4.1 development files
+
+| Distribution | Command |
+| :--- | :--- |
+| Ubuntu 22.04+ / Debian 12+ | `sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev` |
+| Fedora | `sudo dnf install gcc pkgconf-pkg-config gtk3-devel webkit2gtk4.1-devel` |
+| Arch Linux | `sudo pacman -S --needed base-devel gtk3 webkit2gtk-4.1` |
 
 ### Setup
 Install Wails CLI:
@@ -98,7 +106,8 @@ go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ### Development Mode
 To run the app with live reload for both backend and frontend:
 ```bash
-wails dev
+wails dev                    # Windows
+wails dev -tags webkit2_41   # Linux
 ```
 
 ### Production Build
@@ -112,6 +121,30 @@ Alternatively, use the custom PowerShell build script to inject version tags (e.
 .\scripts\build.ps1 -Version v1.0.2
 ```
 The output binary will be located at: `build/bin/NetRasad.exe`
+
+### Linux Build
+```bash
+wails build -clean -platform linux/amd64 -tags webkit2_41
+```
+Or use the build script, which injects the version and can also produce the release packages (`--package` needs [nfpm](https://nfpm.goreleaser.com)):
+```bash
+./scripts/build.sh v1.0.2             # build/bin/NetRasad
+./scripts/build.sh v1.0.2 --package   # build/dist/: .tar.gz, .deb and .rpm
+```
+
+### Installing on Linux
+Every [release](https://github.com/Amirwopi/NetRasad/releases) ships a `.deb`, an `.rpm` and a portable `.tar.gz`. The packages pull in GTK and WebKitGTK automatically:
+```bash
+sudo apt install ./netrasad_*_amd64.deb      # Ubuntu 22.04+, Debian 12+
+sudo dnf install ./netrasad-*.x86_64.rpm     # Fedora
+```
+From the tarball, install `libwebkit2gtk-4.1` (and GTK 3) with your package manager, then run `./NetRasad`.
+
+**Linux notes**
+* **Tray icon:** shown on KDE Plasma, Cinnamon, XFCE, MATE, Budgie and panels such as waybar. Stock GNOME needs the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/) (preinstalled on Ubuntu). Without a tray, closing the window quits the app instead of hiding it.
+* **Live speed in the panel:** the label next to the tray icon is displayed by hosts that support indicator labels (GNOME with AppIndicator, Ubuntu); elsewhere it appears in the icon's tooltip. The Windows-only floating overlays (taskbar band, ping widget) are not available on Linux.
+* **Diagnostics:** ping uses `ping`; traceroute uses `traceroute` when installed and falls back to `tracepath` (iputils).
+* **Per-process ownership:** sockets owned by other users (e.g. system daemons) are listed without a process name unless NetRasad runs as root.
 
 ---
 

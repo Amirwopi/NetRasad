@@ -1,0 +1,41 @@
+# Package definition for nfpm (https://nfpm.goreleaser.com), used by
+# `scripts/build.sh <version> --package` to produce the .deb and .rpm.
+name: netrasad
+arch: amd64
+platform: linux
+version: ${NETRASAD_VERSION}
+section: net
+priority: optional
+maintainer: NetRasad Project
+description: |-
+  Real-time network traffic monitor.
+  Live speed graphs, per-application usage, data quotas and network
+  diagnostics (ping, traceroute, DNS lookup, TCP connect) with a tray icon.
+vendor: NetRasad Project
+homepage: https://github.com/Amirwopi/NetRasad
+license: MIT
+
+contents:
+  - src: build/bin/NetRasad
+    dst: /usr/bin/NetRasad
+    file_info:
+      mode: 0755
+  - src: build/linux/NetRasad.desktop
+    dst: /usr/share/applications/NetRasad.desktop
+  - src: build/appicon.png
+    dst: /usr/share/icons/hicolor/512x512/apps/netrasad.png
+
+overrides:
+  deb:
+    depends:
+      - libgtk-3-0 | libgtk-3-0t64
+      - libwebkit2gtk-4.1-0
+    recommends:
+      - iputils-ping
+      - iputils-tracepath | traceroute
+  rpm:
+    depends:
+      - gtk3
+      - webkit2gtk4.1
+    recommends:
+      - iputils

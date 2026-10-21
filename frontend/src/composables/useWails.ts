@@ -89,6 +89,8 @@ export function useWails() {
       routerMonitor: raw['routerMonitor'] ?? false,
       sync: raw['sync'] ?? false,
       dbPath: raw['dbPath'] ?? '',
+      taskbarOverlay: raw['taskbarOverlay'] ?? false,
+      pingOverlay: raw['pingOverlay'] ?? false,
     }
   }
 

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=NetRasad
+GenericName=Network Monitor
+Comment=Real-time network traffic monitoring and diagnostics
+Exec=NetRasad
+Icon=netrasad
+Terminal=false
+Categories=Network;Monitor;
+Keywords=network;bandwidth;traffic;speed;quota;ping;traceroute;
+StartupWMClass=NetRasad
+StartupNotify=true

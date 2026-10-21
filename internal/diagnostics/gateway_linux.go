@@ -5,79 +5,26 @@ package diagnostics
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/netrasad/netrasad/internal/platform/linux/netinfo"
 )
 
 func getDefaultGateway() (*GatewayInfo, error) {
-	gw, err := parseProcNetRoute()
-	if err == nil {
-		return gw, nil
-	}
-
-	return parseIPRoute()
-}
-
-func parseProcNetRoute() (*GatewayInfo, error) {
-	data, err := os.ReadFile("/proc/net/route")
-	if err != nil {
-		return nil, fmt.Errorf("read /proc/net/route: %w", err)
-	}
-
-	lines := strings.Split(string(data), "\n")
-	if len(lines) < 2 {
-		return nil, fmt.Errorf("no routes in /proc/net/route")
-	}
-
-	for i, line := range lines {
-		if i == 0 {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 8 {
-			continue
-		}
-		if fields[1] != "00000000" || fields[7] != "00000000" {
-			continue
-		}
-
-		gatewayHex := fields[2]
-		gwIP := parseHexLittleEndianIP(gatewayHex)
-		if gwIP == "" {
-			continue
-		}
-
-		metric := 0
-		if len(fields) >= 6 {
-			metric, _ = strconv.Atoi(fields[5])
-		}
-
+	routes, err := netinfo.DefaultRoutes()
+	if err == nil && len(routes) > 0 {
+		r := routes[0]
 		return &GatewayInfo{
-			GatewayIP: gwIP,
-			Interface: fields[0],
-			Metric:    metric,
+			GatewayIP: r.Gateway,
+			Interface: r.Interface,
+			Metric:    r.Metric,
 		}, nil
 	}
 
-	return nil, fmt.Errorf("default gateway not found in /proc/net/route")
-}
-
-func parseHexLittleEndianIP(hex string) string {
-	if len(hex) != 8 {
-		return ""
-	}
-	bytes := make([]byte, 4)
-	for i := 0; i < 4; i++ {
-		b, err := strconv.ParseUint(hex[i*2:i*2+2], 16, 8)
-		if err != nil {
-			return ""
-		}
-		bytes[3-i] = byte(b)
-	}
-	return fmt.Sprintf("%d.%d.%d.%d", bytes[0], bytes[1], bytes[2], bytes[3])
+	return parseIPRoute()
 }
 
 func parseIPRoute() (*GatewayInfo, error) {

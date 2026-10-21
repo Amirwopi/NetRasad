@@ -25,7 +25,7 @@ func main() {
 	a := app.New()
 	a.SetVersion(Version)
 
-	err := wails.Run(&options.App{
+	opts := &options.App{
 		Title:             "NetRasad",
 		Width:             1100,
 		Height:            768,
@@ -63,7 +63,10 @@ func main() {
 		Bind: []interface{}{
 			a,
 		},
-	})
+	}
+	configurePlatform(opts)
+
+	err := wails.Run(opts)
 	if err != nil {
 		panic(err)
 	}

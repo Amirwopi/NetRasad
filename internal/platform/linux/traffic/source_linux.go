@@ -13,9 +13,28 @@ import (
 	"time"
 
 	"github.com/netrasad/netrasad/internal/domain"
+	"github.com/netrasad/netrasad/internal/platform/linux/netinfo"
 )
 
 const sysClassNet = "/sys/class/net"
+
+// ARPHRD_* hardware types reported in /sys/class/net/<iface>/type.
+const (
+	arphrdEther             = 1
+	arphrdPPP               = 512
+	arphrdTunnel            = 768
+	arphrdTunnel6           = 769
+	arphrdLoopback          = 772
+	arphrdSit               = 776
+	arphrdIPGRE             = 778
+	arphrdIEEE80211         = 801
+	arphrdIEEE80211Prism    = 802
+	arphrdIEEE80211Radiotap = 803
+	arphrdIP6GRE            = 823
+	arphrdNone              = 65534
+)
+
+const iffUp = 0x1
 
 type LinuxSource struct {
 	mu      sync.Mutex
@@ -45,12 +64,19 @@ func (l *LinuxSource) Interfaces(ctx context.Context) ([]domain.NetworkInterface
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", sysClassNet, err)
 	}
+	adapterInfo := netinfo.GetAdapterInfo()
+
 	var ifaces []domain.NetworkInterface
 	for _, entry := range entries {
 		name := entry.Name()
 		iface, err := readInterface(name)
 		if err != nil {
 			continue
+		}
+		if info, ok := adapterInfo[name]; ok {
+			iface.IPAddresses = info.IPAddresses
+			iface.GatewayIP = info.GatewayIP
+			iface.SSID = info.SSID
 		}
 		ifaces = append(ifaces, iface)
 	}
@@ -96,8 +122,9 @@ func (l *LinuxSource) ReadAllStats(ctx context.Context) ([]domain.TrafficCounter
 func readInterface(name string) (domain.NetworkInterface, error) {
 	base := filepath.Join(sysClassNet, name)
 	iface := domain.NetworkInterface{
-		ID:   name,
-		Name: name,
+		ID:          name,
+		Name:        name,
+		IPAddresses: []string{},
 	}
 
 	if desc, err := os.ReadFile(filepath.Join(base, "ifalias")); err == nil {
@@ -119,11 +146,22 @@ func readInterface(name string) (domain.NetworkInterface, error) {
 
 	if tp, err := os.ReadFile(filepath.Join(base, "type")); err == nil {
 		t, _ := strconv.Atoi(strings.TrimSpace(string(tp)))
-		iface.Type = mapLinuxIfType(t, name)
+		iface.Type = mapLinuxIfType(t, name, isWireless(base))
+	}
+
+	// carrier can only be read while the interface is administratively up.
+	if carrier, err := readUintFromFile(filepath.Join(base, "carrier")); err == nil {
+		iface.MediaConnected = carrier == 1
 	}
 
 	if operstate, err := os.ReadFile(filepath.Join(base, "operstate")); err == nil {
-		iface.IsUp = strings.TrimSpace(string(operstate)) == "up"
+		switch strings.TrimSpace(string(operstate)) {
+		case "up":
+			iface.IsUp = true
+		case "unknown":
+			// Drivers that do not report link state (tun, ppp, some USB modems).
+			iface.IsUp = hasFlagUp(name) && iface.MediaConnected
+		}
 	} else {
 		iface.IsUp = hasFlagUp(name)
 	}
@@ -155,19 +193,31 @@ func readUintFromFile(path string) (uint64, error) {
 	return strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64)
 }
 
-func mapLinuxIfType(t int, name string) domain.InterfaceType {
+func mapLinuxIfType(t int, name string, wireless bool) domain.InterfaceType {
 	switch {
-	case name == "lo":
+	case name == "lo" || t == arphrdLoopback:
 		return domain.InterfaceTypeLoopback
-	case t == 1:
-		return domain.InterfaceTypeEthernet
-	case t == 801:
+	// Wi-Fi station interfaces report ARPHRD_ETHER, so check for wireless first.
+	case wireless, t == arphrdIEEE80211, t == arphrdIEEE80211Prism, t == arphrdIEEE80211Radiotap:
 		return domain.InterfaceTypeWiFi
-	case t == 65534:
+	case t == arphrdEther:
+		return domain.InterfaceTypeEthernet
+	case t == arphrdPPP:
+		return domain.InterfaceTypePPP
+	case t == arphrdNone, t == arphrdTunnel, t == arphrdTunnel6, t == arphrdSit, t == arphrdIPGRE, t == arphrdIP6GRE:
 		return domain.InterfaceTypeTunnel
 	default:
 		return domain.InterfaceTypeOther
 	}
+}
+
+func isWireless(base string) bool {
+	for _, p := range []string{"wireless", "phy80211"} {
+		if _, err := os.Stat(filepath.Join(base, p)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func hasFlagUp(name string) bool {
@@ -179,7 +229,7 @@ func hasFlagUp(name string) bool {
 	if err != nil {
 		return false
 	}
-	return flags&0x1 != 0
+	return flags&iffUp != 0
 }
 
 func isLinuxVirtual(base, name string) bool {
