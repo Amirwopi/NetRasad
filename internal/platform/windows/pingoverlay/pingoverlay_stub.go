@@ -3,11 +3,14 @@
 package pingoverlay
 
 type Config struct {
-	Enabled bool   `json:"enabled"`
-	Address string `json:"address"`
-	Label   string `json:"label"`
-	X       int32  `json:"x"`
-	Y       int32  `json:"y"`
+	Enabled      bool   `json:"enabled"`
+	Address      string `json:"address"`
+	Label        string `json:"label"`
+	X            int32  `json:"x"`
+	Y            int32  `json:"y"`
+	BgColorHex   string `json:"bgColorHex"`
+	TextColorHex string `json:"textColorHex"`
+	Shape        string `json:"shape"`
 }
 
 type PingOverlay struct{}
@@ -23,3 +26,9 @@ func (o *PingOverlay) SetConfig(cfg Config) {}
 func (o *PingOverlay) GetConfig() Config {
 	return Config{}
 }
+
+func (o *PingOverlay) Start() error {
+	return nil
+}
+
+func (o *PingOverlay) Stop() {}

@@ -1,5 +1,6 @@
 build/bin/
 build/windows/
+build/dist/
 frontend/dist/
 frontend/node_modules/
 frontend/wailsjs/

@@ -4,58 +4,71 @@ package connections
 
 import (
 	"bufio"
+	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
+	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
+var procNetTables = []struct {
+	path  string
+	proto Protocol
+	isV6  bool
+}{
+	{"/proc/net/tcp", TCP, false},
+	{"/proc/net/tcp6", TCP, true},
+	{"/proc/net/udp", UDP, false},
+	{"/proc/net/udp6", UDP, true},
+}
+
+type socketEntry struct {
+	conn  Connection
+	inode uint64
+}
+
 func (s *Service) GetConnections() ([]Connection, error) {
-	inodePID, err := buildInodePIDMap()
-	if err != nil {
-		inodePID = map[uint64]int{}
+	var entries []socketEntry
+	for _, t := range procNetTables {
+		e, err := parseProcNetFile(t.path, t.proto, t.isV6)
+		if err != nil {
+			// The IPv6 tables do not exist when IPv6 is disabled at boot.
+			if t.isV6 && errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			return nil, fmt.Errorf("parse %s: %w", t.path, err)
+		}
+		entries = append(entries, e...)
 	}
-	pidName := buildPIDNameMap(inodePID)
 
-	var conns []Connection
+	owners.resolve(entries)
 
-	tcp4, err := parseProcNet("/proc/net/tcp", TCP, false, inodePID, pidName)
-	if err != nil {
-		return nil, fmt.Errorf("parse /proc/net/tcp: %w", err)
+	conns := make([]Connection, len(entries))
+	for i, e := range entries {
+		conns[i] = e.conn
 	}
-	conns = append(conns, tcp4...)
-
-	tcp6, err := parseProcNet("/proc/net/tcp6", TCP, true, inodePID, pidName)
-	if err != nil {
-		return nil, fmt.Errorf("parse /proc/net/tcp6: %w", err)
-	}
-	conns = append(conns, tcp6...)
-
-	udp4, err := parseProcNet("/proc/net/udp", UDP, false, inodePID, pidName)
-	if err != nil {
-		return nil, fmt.Errorf("parse /proc/net/udp: %w", err)
-	}
-	conns = append(conns, udp4...)
-
-	udp6, err := parseProcNet("/proc/net/udp6", UDP, true, inodePID, pidName)
-	if err != nil {
-		return nil, fmt.Errorf("parse /proc/net/udp6: %w", err)
-	}
-	conns = append(conns, udp6...)
-
 	return conns, nil
 }
 
-func parseProcNet(path string, proto Protocol, isV6 bool, inodePID map[uint64]int, pidName map[int]string) ([]Connection, error) {
+func parseProcNetFile(path string, proto Protocol, isV6 bool) ([]socketEntry, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
+	return parseProcNet(f, proto, isV6)
+}
 
-	var conns []Connection
-	scanner := bufio.NewScanner(f)
+func parseProcNet(r io.Reader, proto Protocol, isV6 bool) ([]socketEntry, error) {
+	var entries []socketEntry
+	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	lineNum := 0
 	for scanner.Scan() {
@@ -101,14 +114,9 @@ func parseProcNet(path string, proto Protocol, isV6 bool, inodePID map[uint64]in
 			c.State = StateNA
 		}
 
-		if pid, ok := inodePID[inode]; ok {
-			c.PID = pid
-			c.ProcessName = pidName[pid]
-		}
-
-		conns = append(conns, c)
+		entries = append(entries, socketEntry{conn: c, inode: inode})
 	}
-	return conns, scanner.Err()
+	return entries, scanner.Err()
 }
 
 func parseAddrPort(s string, isV6 bool) (string, int, error) {
@@ -119,60 +127,30 @@ func parseAddrPort(s string, isV6 bool) (string, int, error) {
 	addrHex := s[:colon]
 	portHex := s[colon+1:]
 
-	port, err := strconv.ParseInt(portHex, 16, 32)
+	port, err := strconv.ParseUint(portHex, 16, 16)
 	if err != nil {
 		return "", 0, fmt.Errorf("bad port: %w", err)
 	}
 
+	want := 8
 	if isV6 {
-		if len(addrHex) != 32 {
-			return "", 0, fmt.Errorf("bad v6 addr length")
-		}
-		ip, err := parseIPv6Hex(addrHex)
-		if err != nil {
-			return "", 0, err
-		}
-		return ip, int(port), nil
+		want = 32
+	}
+	if len(addrHex) != want {
+		return "", 0, fmt.Errorf("bad address length %d", len(addrHex))
 	}
 
-	if len(addrHex) != 8 {
-		return "", 0, fmt.Errorf("bad v4 addr length")
-	}
-	v, err := strconv.ParseUint(addrHex, 16, 32)
-	if err != nil {
-		return "", 0, fmt.Errorf("bad v4 addr: %w", err)
-	}
-	ip := fmt.Sprintf("%d.%d.%d.%d",
-		byte(v),
-		byte(v>>8),
-		byte(v>>16),
-		byte(v>>24),
-	)
-	return ip, int(port), nil
-}
-
-func parseIPv6Hex(h string) (string, error) {
-	if len(h) != 32 {
-		return "", fmt.Errorf("bad v6 length")
-	}
-	var b [16]byte
-	for i := 0; i < 4; i++ {
-		seg := h[i*8 : (i+1)*8]
-		v, err := strconv.ParseUint(seg, 16, 32)
+	// The kernel prints the address as 32-bit words, each holding raw
+	// network-order bytes formatted as a host-endian integer.
+	ip := make(net.IP, len(addrHex)/2)
+	for i := 0; i < len(ip); i += 4 {
+		v, err := strconv.ParseUint(addrHex[i*2:i*2+8], 16, 32)
 		if err != nil {
-			return "", err
+			return "", 0, fmt.Errorf("bad address: %w", err)
 		}
-		b[i*4+0] = byte(v)
-		b[i*4+1] = byte(v >> 8)
-		b[i*4+2] = byte(v >> 16)
-		b[i*4+3] = byte(v >> 24)
+		binary.NativeEndian.PutUint32(ip[i:i+4], uint32(v))
 	}
-	return fmt.Sprintf("%x:%x:%x:%x:%x:%x:%x:%x",
-		(b[0]<<8)|b[1], (b[2]<<8)|b[3],
-		(b[4]<<8)|b[5], (b[6]<<8)|b[7],
-		(b[8]<<8)|b[9], (b[10]<<8)|b[11],
-		(b[12]<<8)|b[13], (b[14]<<8)|b[15],
-	), nil
+	return ip.String(), int(port), nil
 }
 
 func tcpStateFromHex(h string) TCPState {
@@ -208,11 +186,70 @@ func tcpStateFromHex(h string) TCPState {
 	}
 }
 
-func buildInodePIDMap() (map[uint64]int, error) {
+// Finding which process owns a socket means walking every /proc/<pid>/fd,
+// which is by far the most expensive step and runs every second, so owners
+// are cached and only rescanned (at most every ownerRescanInterval) once
+// sockets appear that the last scan has not seen.
+const ownerRescanInterval = 2 * time.Second
+
+var owners = &socketOwners{}
+
+type socketOwners struct {
+	mu       sync.Mutex
+	seen     map[uint64]bool
+	pids     map[uint64]int
+	names    map[int]string
+	lastScan time.Time
+}
+
+func (o *socketOwners) resolve(entries []socketEntry) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.needsRescan(entries) {
+		o.pids = buildInodePIDMap()
+		o.names = buildPIDNameMap(o.pids)
+		o.lastScan = time.Now()
+		// Sockets owned by other users can never be attributed without root;
+		// remembering them keeps them from triggering a rescan every time.
+		o.seen = make(map[uint64]bool, len(entries)+len(o.pids))
+		for _, e := range entries {
+			o.seen[e.inode] = true
+		}
+		for inode := range o.pids {
+			o.seen[inode] = true
+		}
+	}
+
+	for i := range entries {
+		if pid, ok := o.pids[entries[i].inode]; ok {
+			entries[i].conn.PID = pid
+			entries[i].conn.ProcessName = o.names[pid]
+		}
+	}
+}
+
+func (o *socketOwners) needsRescan(entries []socketEntry) bool {
+	if o.pids == nil {
+		return true
+	}
+	if time.Since(o.lastScan) < ownerRescanInterval {
+		return false
+	}
+	for _, e := range entries {
+		// Inode 0 marks sockets that no longer belong to a process (TIME_WAIT).
+		if e.inode != 0 && !o.seen[e.inode] {
+			return true
+		}
+	}
+	return false
+}
+
+func buildInodePIDMap() map[uint64]int {
 	result := make(map[uint64]int)
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
-		return nil, err
+		return result
 	}
 	for _, entry := range entries {
 		if !entry.IsDir() {
@@ -245,22 +282,33 @@ func buildInodePIDMap() (map[uint64]int, error) {
 			}
 		}
 	}
-	return result, nil
+	return result
 }
 
 func buildPIDNameMap(inodePID map[uint64]int) map[int]string {
 	result := make(map[int]string, len(inodePID))
-	seen := make(map[int]bool)
 	for _, pid := range inodePID {
-		if seen[pid] {
+		if _, done := result[pid]; done {
 			continue
 		}
-		seen[pid] = true
-		data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "comm"))
-		if err != nil {
-			continue
-		}
-		result[pid] = strings.TrimSpace(string(data))
+		result[pid] = processName(pid)
 	}
 	return result
+}
+
+// processName prefers the executable's file name, as the Windows build does;
+// /proc/<pid>/comm is cut at 15 characters and often names a helper thread.
+func processName(pid int) string {
+	dir := filepath.Join("/proc", strconv.Itoa(pid))
+	if exe, err := os.Readlink(filepath.Join(dir, "exe")); err == nil {
+		exe = strings.TrimSuffix(exe, " (deleted)")
+		if name := filepath.Base(exe); name != "." && name != "/" {
+			return name
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "comm"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }

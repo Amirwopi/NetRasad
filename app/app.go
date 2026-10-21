@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -311,12 +312,16 @@ func (a *App) GetTrafficHistory(startISO, endISO, resolution string) ([]domain.T
 
 func (a *App) GetCapabilities() map[string]interface{} {
 	return map[string]interface{}{
-		"platform":       "windows",
+		"platform":       runtime.GOOS,
 		"trafficMonitor": true,
 		"processMonitor": true,
 		"routerMonitor":  false,
 		"sync":           false,
 		"dbPath":         a.dbPath,
+		// The floating overlays are Windows windows; Linux shows the speed
+		// next to the tray icon instead.
+		"taskbarOverlay": runtime.GOOS == "windows",
+		"pingOverlay":    runtime.GOOS == "windows",
 	}
 }
 

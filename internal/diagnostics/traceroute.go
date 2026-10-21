@@ -3,6 +3,7 @@ package diagnostics
 import (
 	"context"
 	"fmt"
+	"net"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -25,11 +26,24 @@ func (s *Service) Traceroute(host string, maxHops int) (*TracerouteResult, error
 	defer cancel()
 
 	var cmd *exec.Cmd
+	var parse func(*TracerouteResult, string)
 	switch runtime.GOOS {
 	case "windows":
 		cmd = exec.CommandContext(ctx, "tracert", "-d", "-h", strconv.Itoa(maxHops), host)
+		parse = parseWindowsTracert
 	case "linux":
-		cmd = exec.CommandContext(ctx, "traceroute", "-n", "-m", strconv.Itoa(maxHops), host)
+		// traceroute is not installed by default on several distributions,
+		// while tracepath ships with iputils next to ping.
+		if _, err := exec.LookPath("traceroute"); err == nil {
+			cmd = exec.CommandContext(ctx, "traceroute", "-n", "-m", strconv.Itoa(maxHops), host)
+			parse = parseLinuxTraceroute
+		} else if _, err := exec.LookPath("tracepath"); err == nil {
+			cmd = exec.CommandContext(ctx, "tracepath", "-n", "-m", strconv.Itoa(maxHops), host)
+			parse = parseTracepath
+		} else {
+			return nil, fmt.Errorf("traceroute failed: install the traceroute or iputils (tracepath) package")
+		}
+		cmd.Env = untranslatedEnv()
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
@@ -42,12 +56,7 @@ func (s *Service) Traceroute(host string, maxHops int) (*TracerouteResult, error
 		Output: output,
 	}
 
-	switch runtime.GOOS {
-	case "windows":
-		parseWindowsTracert(result, output)
-	case "linux":
-		parseLinuxTraceroute(result, output)
-	}
+	parse(result, output)
 
 	if err != nil && output == "" {
 		return nil, fmt.Errorf("traceroute failed: %w", err)
@@ -161,42 +170,94 @@ func parseLinuxTracerouteLine(line string) *TracerouteHop {
 		RTT3: -1,
 	}
 
-	fields := strings.Fields(rest)
-	if len(fields) == 0 {
-		return hop
-	}
-
-	if fields[0] == "*" {
-		return hop
-	}
-
-	hop.IP = fields[0]
-	hop.Host = fields[0]
-
+	// Each probe prints either "*" or "<rtt> ms", optionally preceded by the
+	// replying address (repeated when it changes) and followed by annotations
+	// such as "!H".
 	rtts := []float64{-1, -1, -1}
-	rttIdx := 0
-	for i := 1; i < len(fields) && rttIdx < 3; i++ {
+	probe := 0
+	fields := strings.Fields(rest)
+	for i := 0; i < len(fields) && probe < 3; i++ {
 		f := fields[i]
-		if f == "ms" {
-			continue
-		}
-		if f == "*" {
-			rttIdx++
-			continue
-		}
-		v, err := strconv.ParseFloat(f, 64)
-		if err == nil {
-			if rttIdx < 3 {
-				rtts[rttIdx] = v
+		switch {
+		case f == "*":
+			probe++
+		case i+1 < len(fields) && fields[i+1] == "ms":
+			if v, err := strconv.ParseFloat(f, 64); err == nil {
+				rtts[probe] = v
 			}
+			probe++
+			i++
+		case strings.HasSuffix(f, "ms"):
+			if v, err := strconv.ParseFloat(strings.TrimSuffix(f, "ms"), 64); err == nil {
+				rtts[probe] = v
+				probe++
+			}
+		case hop.IP == "" && net.ParseIP(strings.Trim(f, "()")) != nil:
+			hop.IP = strings.Trim(f, "()")
+			hop.Host = hop.IP
 		}
-		rttIdx++
 	}
 	hop.RTT1 = rtts[0]
 	hop.RTT2 = rtts[1]
 	hop.RTT3 = rtts[2]
 
 	return hop
+}
+
+var tracepathLineRe = regexp.MustCompile(`^\s*(\d+)\??:\s+(.*)$`)
+
+// parseTracepath handles iputils tracepath, which prints one line per probe:
+//
+//	1?: [LOCALHOST]                      pmtu 1500
+//	1:  192.168.1.1                                           0.523ms
+//	2:  no reply
+//	3:  8.8.8.8                                              10.904ms reached
+func parseTracepath(r *TracerouteResult, output string) {
+	hops := map[int]*TracerouteHop{}
+	var order []int
+	for _, line := range strings.Split(output, "\n") {
+		m := tracepathLineRe.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		fields := strings.Fields(m[2])
+		if len(fields) == 0 || fields[0] == "[LOCALHOST]" {
+			continue
+		}
+		num, err := strconv.Atoi(m[1])
+		if err != nil {
+			continue
+		}
+		hop, ok := hops[num]
+		if !ok {
+			hop = &TracerouteHop{Hop: num, RTT1: -1, RTT2: -1, RTT3: -1}
+			hops[num] = hop
+			order = append(order, num)
+		}
+		if net.ParseIP(fields[0]) == nil {
+			continue
+		}
+		if hop.IP == "" {
+			hop.IP = fields[0]
+			hop.Host = fields[0]
+		}
+		for _, f := range fields[1:] {
+			if v, err := strconv.ParseFloat(strings.TrimSuffix(f, "ms"), 64); err == nil && strings.HasSuffix(f, "ms") {
+				switch {
+				case hop.RTT1 < 0:
+					hop.RTT1 = v
+				case hop.RTT2 < 0:
+					hop.RTT2 = v
+				case hop.RTT3 < 0:
+					hop.RTT3 = v
+				}
+				break
+			}
+		}
+	}
+	for _, num := range order {
+		r.Hops = append(r.Hops, *hops[num])
+	}
 }
 
 func isDigit(r rune) bool {

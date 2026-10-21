@@ -3,6 +3,7 @@ package diagnostics
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -30,6 +31,7 @@ func (s *Service) Ping(host string, count int) (*PingResult, error) {
 		cmd = exec.CommandContext(ctx, "ping", "-n", strconv.Itoa(count), host)
 	case "linux":
 		cmd = exec.CommandContext(ctx, "ping", "-c", strconv.Itoa(count), host)
+		cmd.Env = untranslatedEnv()
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
@@ -81,6 +83,12 @@ func (s *Service) Ping(host string, count int) (*PingResult, error) {
 	}
 
 	return result, nil
+}
+
+// untranslatedEnv forces the C locale so that tool output matches what the
+// parsers expect whatever language the desktop uses.
+func untranslatedEnv() []string {
+	return append(os.Environ(), "LC_ALL=C")
 }
 
 var windowsReplyRe = regexp.MustCompile(`time([=<])(\d+)\s*ms`)

@@ -57,6 +57,8 @@ export interface Capabilities {
   routerMonitor: boolean
   sync: boolean
   dbPath: string
+  taskbarOverlay: boolean
+  pingOverlay: boolean
 }
 
 export interface Metrics {

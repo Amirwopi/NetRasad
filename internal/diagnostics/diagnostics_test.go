@@ -276,3 +276,70 @@ func TestIsDigit(t *testing.T) {
 		t.Error("isDigit(' ') = true, want false")
 	}
 }
+
+func TestParseLinuxTraceroute_PartialRepliesAndAnnotations(t *testing.T) {
+	output := `traceroute to 1.1.1.1 (1.1.1.1), 30 hops max, 60 byte packets
+ 1  192.168.1.1  0.512 ms  0.480 ms  0.470 ms
+ 2  *  10.0.0.1  12.300 ms  11.200 ms
+ 3  10.1.1.1  10.123 ms 10.1.1.2  11.000 ms  10.900 ms
+ 4  172.16.5.5  12.345 ms !H  12.100 ms !H  *
+ 5  1.1.1.1  9.8 ms  9.7 ms  9.6 ms
+`
+	r := &TracerouteResult{Hops: []TracerouteHop{}}
+	parseLinuxTraceroute(r, output)
+	if len(r.Hops) != 5 {
+		t.Fatalf("len(Hops) = %d, want 5", len(r.Hops))
+	}
+
+	want := []TracerouteHop{
+		{Hop: 1, IP: "192.168.1.1", RTT1: 0.512, RTT2: 0.48, RTT3: 0.47},
+		{Hop: 2, IP: "10.0.0.1", RTT1: -1, RTT2: 12.3, RTT3: 11.2},
+		{Hop: 3, IP: "10.1.1.1", RTT1: 10.123, RTT2: 11, RTT3: 10.9},
+		{Hop: 4, IP: "172.16.5.5", RTT1: 12.345, RTT2: 12.1, RTT3: -1},
+		{Hop: 5, IP: "1.1.1.1", RTT1: 9.8, RTT2: 9.7, RTT3: 9.6},
+	}
+	for i, w := range want {
+		h := r.Hops[i]
+		if h.Hop != w.Hop || h.IP != w.IP || h.RTT1 != w.RTT1 || h.RTT2 != w.RTT2 || h.RTT3 != w.RTT3 {
+			t.Errorf("Hops[%d] = %+v, want %+v", i, h, w)
+		}
+	}
+}
+
+func TestParseTracepath(t *testing.T) {
+	output := ` 1?: [LOCALHOST]                      pmtu 1500
+ 1:  192.168.1.1                                           0.523ms 
+ 1:  192.168.1.1                                           0.467ms 
+ 2:  10.20.0.1                                             8.137ms 
+ 3:  no reply
+ 4:  72.14.215.85                                         10.540ms asymm  5 
+ 5:  8.8.8.8                                              10.904ms reached
+     Resume: pmtu 1500 hops 5 back 5 
+`
+	r := &TracerouteResult{Hops: []TracerouteHop{}}
+	parseTracepath(r, output)
+	if len(r.Hops) != 5 {
+		t.Fatalf("len(Hops) = %d, want 5: %+v", len(r.Hops), r.Hops)
+	}
+
+	want := []TracerouteHop{
+		{Hop: 1, IP: "192.168.1.1", RTT1: 0.523, RTT2: 0.467, RTT3: -1},
+		{Hop: 2, IP: "10.20.0.1", RTT1: 8.137, RTT2: -1, RTT3: -1},
+		{Hop: 3, IP: "", RTT1: -1, RTT2: -1, RTT3: -1},
+		{Hop: 4, IP: "72.14.215.85", RTT1: 10.54, RTT2: -1, RTT3: -1},
+		{Hop: 5, IP: "8.8.8.8", RTT1: 10.904, RTT2: -1, RTT3: -1},
+	}
+	for i, w := range want {
+		h := r.Hops[i]
+		if h.Hop != w.Hop || h.IP != w.IP || h.RTT1 != w.RTT1 || h.RTT2 != w.RTT2 || h.RTT3 != w.RTT3 {
+			t.Errorf("Hops[%d] = %+v, want %+v", i, h, w)
+		}
+	}
+}
+
+func TestUntranslatedEnvForcesCLocale(t *testing.T) {
+	env := untranslatedEnv()
+	if len(env) == 0 || env[len(env)-1] != "LC_ALL=C" {
+		t.Fatalf("untranslatedEnv() must end with LC_ALL=C, got %v", env)
+	}
+}
